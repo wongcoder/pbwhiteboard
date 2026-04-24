@@ -1,0 +1,790 @@
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0d14">
+<title>Pickle Play Whiteboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --bg: #0a0d14;
+    --bg-elev: #151924;
+    --bg-elev-2: #1e2433;
+    --border: #252b3a;
+    --text: #e6e9f0;
+    --text-dim: #8b93a7;
+    --text-faint: #5a6278;
+    --accent: #4ade80;
+    --accent-glow: rgba(74, 222, 128, 0.18);
+    --p1: #3b82f6; --p2: #10b981; --o1: #ef4444; --o2: #f97316;
+    --line: #a855f7; --delete: #ef4444; --export: #14b8a6;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: radial-gradient(ellipse at top, #141a28 0%, var(--bg) 60%);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--text); min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none; user-select: none;
+    padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right);
+  }
+  /* Mobile default: stacked vertical layout */
+  .app { display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+  header { padding: 28px 16px 12px; text-align: center; }
+  header h1 {
+    font-size: 22px; font-weight: 700; letter-spacing: -0.4px; color: #fff;
+    display: inline-flex; align-items: center; gap: 10px;
+  }
+  header h1 .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 12px var(--accent-glow);
+  }
+  header h1 span { background: linear-gradient(135deg, #4ade80, #3b82f6); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .help { color: var(--text-dim); font-size: 12.5px; margin-top: 6px; letter-spacing: 0.1px; padding: 0 12px; }
+  .toolbar {
+    display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center;
+    padding: 10px; margin: 4px 12px 12px;
+    max-width: calc(100vw - 24px);
+    background: rgba(21, 25, 36, 0.7);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border); border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  .toolbar .group {
+    display: flex; gap: 4px; background: var(--bg);
+    border-radius: 10px; padding: 4px; border: 1px solid var(--border);
+  }
+  .toolbar .group-experimental {
+    border-style: dashed; border-color: rgba(251,191,36,0.35);
+  }
+  .toolbar .group-experimental .group-label { color: #fbbf24; }
+  .toolbar .group-label {
+    font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--text-faint); padding: 0 6px;
+  }
+  .toolbar button {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 12px; border-radius: 7px; border: 1px solid transparent;
+    cursor: pointer; font-size: 13px; font-weight: 600; letter-spacing: 0.1px;
+    min-height: 38px; color: var(--text);
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    background: transparent; font-family: inherit;
+  }
+  .toolbar button svg { width: 14px; height: 14px; flex: none; opacity: 0.85; }
+  .toolbar button:hover { background: var(--bg-elev-2); color: #fff; }
+  .toolbar button.active {
+    background: var(--bg-elev-2); color: #fff;
+    border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+  .toolbar button[data-mode="auto"]:hover,
+  .toolbar button[data-mode="auto"].active { color: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  .toolbar button[data-mode="move"]:hover,
+  .toolbar button[data-mode="move"].active { color: #60a5fa; border-color: #60a5fa; box-shadow: 0 0 0 3px rgba(96,165,250,0.18); }
+  .toolbar button[data-mode="pen"]:hover,
+  .toolbar button[data-mode="pen"].active { color: var(--line); border-color: var(--line); box-shadow: 0 0 0 3px rgba(168,85,247,0.18); }
+  .toolbar button[data-mode="cone"]:hover,
+  .toolbar button[data-mode="cone"].active { color: #fbbf24; border-color: #fbbf24; box-shadow: 0 0 0 3px rgba(251,191,36,0.18); }
+  .toolbar button[data-mode="delete"]:hover,
+  .toolbar button[data-mode="delete"].active { color: var(--delete); border-color: var(--delete); box-shadow: 0 0 0 3px rgba(239,68,68,0.18); }
+  .toolbar button[data-mode="export"]:hover { color: var(--export); }
+  .court-wrap { padding: 4px 12px 28px; width: 100%; display: flex; justify-content: center; }
+  canvas {
+    border-radius: 14px; display: block; touch-action: none;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px var(--border);
+  }
+  .toast {
+    position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(8px);
+    background: var(--bg-elev); color: var(--accent);
+    padding: 10px 20px; border-radius: 10px;
+    font-size: 13px; font-weight: 600;
+    opacity: 0; transition: all 0.22s cubic-bezier(0.4,0,0.2,1); pointer-events: none; z-index: 10;
+    border: 1px solid var(--border);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Desktop: sidebar on the left, court on the right */
+  @media (min-width: 768px) {
+    .app { flex-direction: row; align-items: stretch; justify-content: flex-start; }
+    header {
+      position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+      padding: 0; text-align: center; pointer-events: none; z-index: 5;
+    }
+    header h1 { font-size: 20px; }
+    .help { display: none; }
+    .sidebar {
+      position: sticky; top: 0; align-self: flex-start;
+      width: 88px; height: 100vh; padding: 70px 12px 16px;
+      display: flex; flex-direction: column; gap: 18px; align-items: center;
+      background: rgba(21, 25, 36, 0.6);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border-right: 1px solid var(--border);
+    }
+    .toolbar {
+      flex-direction: column; flex-wrap: nowrap; gap: 14px;
+      padding: 0; margin: 0; max-width: none; width: 100%;
+      background: transparent; backdrop-filter: none; border: none; box-shadow: none;
+    }
+    .toolbar .group {
+      flex-direction: column; gap: 4px; width: 100%;
+    }
+    .toolbar .group-label {
+      text-align: center; margin-bottom: 2px;
+      font-size: 9px; letter-spacing: 0.4px; padding: 0 2px;
+      white-space: normal; overflow: hidden; text-overflow: ellipsis;
+      max-width: 100%;
+    }
+    .toolbar button {
+      width: 100%; justify-content: center; padding: 10px 6px;
+      flex-direction: column; gap: 4px; font-size: 10.5px; letter-spacing: 0.4px;
+    }
+    .toolbar button svg { width: 18px; height: 18px; opacity: 0.9; }
+    .court-wrap {
+      flex: 1; padding: 70px 24px 24px; align-items: center;
+    }
+  }
+
+  @media (max-width: 520px) {
+    header { padding: 14px 12px 4px; }
+    header h1 { font-size: 17px; }
+    .help { font-size: 11px; margin-top: 4px; }
+    .toolbar {
+      padding: 6px; gap: 4px;
+      max-width: calc(100vw - 12px); margin: 4px 6px 8px;
+      flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start;
+      -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    }
+    .toolbar::-webkit-scrollbar { display: none; }
+    .toolbar .group { padding: 3px; gap: 2px; flex: none; }
+    .toolbar .group-label { display: none; }
+    .toolbar button { padding: 8px 10px; font-size: 12px; min-height: 40px; min-width: 40px; gap: 4px; }
+    .toolbar button span.txt { display: none; }
+    .toolbar button svg { width: 16px; height: 16px; }
+    .court-wrap { padding: 4px 6px 16px; }
+  }
+  @media (hover: none) and (pointer: coarse) {
+    /* Touch devices: larger tap targets regardless of width */
+    .toolbar button { min-height: 44px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1><span class="dot"></span>Pickle<span>Play</span> Whiteboard</h1>
+    <p class="help">Auto: tap tokens to select/connect, draw in empty space · Move: drag only · Pen: draw only</p>
+  </header>
+  <aside class="sidebar">
+    <div class="toolbar">
+      <div class="group" role="group" aria-label="Tools">
+        <div class="group-label">Tools</div>
+        <button data-mode="auto" title="Auto mode — Tap a token to select it, then tap another to connect them with an arrow. Drag tokens to reposition. Drag empty space to free-draw.">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z"/></svg>
+          <span class="txt">Auto</span>
+        </button>
+        <button data-mode="move" title="Move mode — Only drag and select tokens. Good for arranging players without accidentally drawing. Tap-to-connect still works.">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M9 5l3-3 3 3M9 19l3 3 3-3M5 9l-3 3 3 3M19 9l3 3-3 3"/></svg>
+          <span class="txt">Move</span>
+        </button>
+        <button data-mode="pen" title="Pen mode — Free-draw arrows without moving tokens. Drag from a token to draw in that team's color, or draw anywhere on the court for a neutral annotation.">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+          <span class="txt">Pen</span>
+        </button>
+        <button data-mode="delete" title="Delete mode — Tap an arrow to remove it. Tap a player to remove them (confirms first).">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M6 6l1 14a2 2 0 002 2h6a2 2 0 002-2l1-14"/></svg>
+          <span class="txt">Delete</span>
+        </button>
+        <button data-mode="undo" title="Undo the last arrow you added (Ctrl/Cmd+Z).">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h11a6 6 0 010 12H9"/><path d="M7 6l-4 4 4 4"/></svg>
+          <span class="txt">Undo</span>
+        </button>
+      </div>
+      <div class="group" role="group" aria-label="View">
+        <div class="group-label">View</div>
+        <button data-mode="flip" title="Flip the court 180° — swaps P1/P2 and O1/O2 sides so you can view from the opposite baseline.">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16"/><path d="M17 4v16"/><path d="M3 8l4-4 4 4"/><path d="M21 16l-4 4-4-4"/></svg>
+          <span class="txt">Flip</span>
+        </button>
+      </div>
+      <div class="group" role="group" aria-label="Actions">
+        <div class="group-label">Actions</div>
+        <button data-mode="reset" title="Reset the board — clears all arrows and returns the four players to their starting positions.">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 109-9v4"/><path d="M7 7L3 3v4h4"/></svg>
+          <span class="txt">Reset</span>
+        </button>
+        <button data-mode="export" title="Export the current board as a PNG image you can download or share.">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+          <span class="txt">Export</span>
+        </button>
+      </div>
+      <div class="group group-experimental" role="group" aria-label="Beta">
+        <div class="group-label">Beta</div>
+        <button data-mode="cone" title="Cones (beta) — Shows the likely return zone for each arrow, anchored on the receiver and opening back toward the shot. Toggle on/off.">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3L4 21h16L12 3z"/></svg>
+          <span class="txt">Cone</span>
+        </button>
+      </div>
+    </div>
+  </aside>
+  <div class="court-wrap"><canvas id="court"></canvas></div>
+</div>
+<div id="toast" class="toast"></div>
+<script>
+// Official: 44ft long x 20ft wide, NVZ 7ft each side, service 15ft x 10ft
+var COURT_W = 20, COURT_L = 44, NVZ = 7;
+var RUNBACK_SIDE = 5, RUNBACK_END = 7;
+var SURFACE_W = COURT_W + RUNBACK_SIDE * 2;   // 30ft
+var SURFACE_L = COURT_L + RUNBACK_END * 2;    // 58ft
+
+var TOKEN_TYPES = {
+  p1: { label: 'P1', fill: '#2563eb', stroke: '#60a5fa' },
+  p2: { label: 'P2', fill: '#059669', stroke: '#34d399' },
+  o1: { label: 'O1', fill: '#dc2626', stroke: '#f87171' },
+  o2: { label: 'O2', fill: '#c2410c', stroke: '#fb923c' }
+};
+
+var STORAGE_KEY = 'pickleplay_v1';
+var TOKEN_R = 17;
+var CONE_ANGLE = Math.PI / 3; // 60° total
+
+var DEFAULT_LAYOUT = [
+  { type: 'p1', fx: 0.30, fy: 0.78 },
+  { type: 'p2', fx: 0.70, fy: 0.78 },
+  { type: 'o1', fx: 0.30, fy: 0.22 },
+  { type: 'o2', fx: 0.70, fy: 0.22 }
+];
+
+function makeDefaultTokens(w, h) {
+  return DEFAULT_LAYOUT.map(function(d) {
+    var t = TOKEN_TYPES[d.type];
+    return { type: d.type, x: d.fx * w, y: d.fy * h, label: t.label, fill: t.fill, stroke: t.stroke };
+  });
+}
+
+var state = {
+  tokens: [], lines: [], mode: 'auto',
+  dragging: { active: false, index: -1, moved: false, downX: 0, downY: 0 },
+  penPoints: null, penFromIdx: null, selected: -1, showCones: false
+};
+
+var canvas, ctx;
+
+function saveState() {
+  if (!canvas) return;
+  try {
+    var payload = {
+      w: canvas.width, h: canvas.height,
+      showCones: state.showCones,
+      tokens: state.tokens.map(function(t) { return { type: t.type, fx: t.x / canvas.width, fy: t.y / canvas.height }; }),
+      lines: state.lines.map(function(l) {
+        var base = {
+          points: l.points.map(function(p) { return { fx: p.x / canvas.width, fy: p.y / canvas.height }; }),
+          color: l.color
+        };
+        if (typeof l.fromIdx === 'number') base.fromIdx = l.fromIdx;
+        if (typeof l.toIdx === 'number') base.toIdx = l.toIdx;
+        return base;
+      })
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  } catch (e) { /* silent */ }
+}
+
+function loadState() {
+  try {
+    var raw = localStorage.getItem(STORAGE_KEY); if (!raw) return false;
+    var data = JSON.parse(raw);
+    if (!data || !Array.isArray(data.tokens)) return false;
+    state.showCones = !!data.showCones;
+    state.tokens = data.tokens.map(function(d) {
+      var t = TOKEN_TYPES[d.type]; if (!t) return null;
+      return { type: d.type, x: d.fx * canvas.width, y: d.fy * canvas.height, label: t.label, fill: t.fill, stroke: t.stroke };
+    }).filter(Boolean);
+    state.lines = (data.lines || []).map(function(d) {
+      var pts;
+      if (Array.isArray(d.points)) {
+        pts = d.points.map(function(p) { return { x: p.fx * canvas.width, y: p.fy * canvas.height }; });
+      } else {
+        // Back-compat: old straight-line format
+        pts = [
+          { x: d.fx1 * canvas.width, y: d.fy1 * canvas.height },
+          { x: d.fx2 * canvas.width, y: d.fy2 * canvas.height }
+        ];
+      }
+      var l = { points: pts, color: d.color };
+      if (typeof d.fromIdx === 'number') l.fromIdx = d.fromIdx;
+      if (typeof d.toIdx === 'number') l.toIdx = d.toIdx;
+      return l;
+    });
+    return state.tokens.length > 0;
+  } catch (e) { return false; }
+}
+
+function showToast(msg) {
+  var el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(el._t); el._t = setTimeout(function() { el.classList.remove('show'); }, 1500);
+}
+
+function drawCourt(ctx, cw, ch) {
+  var scaleX = cw / SURFACE_W, scaleY = ch / SURFACE_L;
+  var scale = Math.min(scaleX, scaleY);
+  var sw = SURFACE_W * scale, sh = SURFACE_L * scale;
+  var sx0 = (cw - sw) / 2, sy0 = (ch - sh) / 2;
+  var w = COURT_W * scale, h = COURT_L * scale;
+  var x0 = sx0 + RUNBACK_SIDE * scale, y0 = sy0 + RUNBACK_END * scale;
+
+  ctx.fillStyle = '#0a0d14'; ctx.fillRect(0, 0, cw, ch);
+  ctx.fillStyle = '#182033';
+  roundRect(ctx, sx0, sy0, sw, sh, 12); ctx.fill();
+
+  var grad = ctx.createLinearGradient(0, y0, 0, y0 + h);
+  grad.addColorStop(0, '#1e4066'); grad.addColorStop(0.5, '#1a3658'); grad.addColorStop(1, '#1e4066');
+  ctx.fillStyle = grad; ctx.fillRect(x0, y0, w, h);
+
+  var nvzH = (NVZ / COURT_L) * h;
+  var netY = y0 + h / 2;
+  ctx.fillStyle = 'rgba(255, 180, 60, 0.08)';
+  ctx.fillRect(x0, netY - nvzH, w, nvzH);
+  ctx.fillRect(x0, netY, w, nvzH);
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.92)'; ctx.lineWidth = 2; ctx.lineCap = 'square';
+  ctx.strokeRect(x0, y0, w, h);
+
+  var postOverhang = Math.min(RUNBACK_SIDE * scale * 0.6, 16);
+  ctx.save();
+  ctx.shadowColor = 'rgba(255,255,255,0.4)'; ctx.shadowBlur = 6;
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(x0 - postOverhang, netY); ctx.lineTo(x0 + w + postOverhang, netY); ctx.stroke();
+  ctx.restore();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.arc(x0 - postOverhang, netY, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x0 + w + postOverhang, netY, 3, 0, Math.PI * 2); ctx.fill();
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.92)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x0, netY - nvzH); ctx.lineTo(x0 + w, netY - nvzH); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x0, netY + nvzH); ctx.lineTo(x0 + w, netY + nvzH); ctx.stroke();
+  var cx = x0 + w / 2;
+  ctx.beginPath(); ctx.moveTo(cx, y0); ctx.lineTo(cx, netY - nvzH); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx, netY + nvzH); ctx.lineTo(cx, y0 + h); ctx.stroke();
+
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.font = '700 ' + Math.max(10, scale * 1.6) + 'px Inter, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('KITCHEN', x0 + w / 2, netY - nvzH / 2);
+  ctx.fillText('KITCHEN', x0 + w / 2, netY + nvzH / 2);
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function drawToken(ctx, t, selected) {
+  if (selected) {
+    ctx.save();
+    ctx.strokeStyle = t.stroke; ctx.lineWidth = 3;
+    ctx.shadowColor = t.stroke; ctx.shadowBlur = 14;
+    ctx.beginPath(); ctx.arc(t.x, t.y, 23, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+  ctx.beginPath(); ctx.arc(t.x, t.y, TOKEN_R, 0, Math.PI * 2);
+  ctx.fillStyle = t.fill; ctx.fill();
+  ctx.restore();
+  ctx.beginPath(); ctx.arc(t.x, t.y, TOKEN_R, 0, Math.PI * 2);
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.font = '700 11.5px Inter, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(t.label, t.x, t.y);
+}
+
+// Cone is anchored to the RECEIVER token. Apex sits on the receiver's edge,
+// facing back along the incoming stroke direction (opening toward where the ball came from).
+// Color uses the receiver's fill so the cone reads as "this player's hit zone".
+function drawCone(ctx, receiverToken, line) {
+  var pts = line.points; if (!pts || pts.length < 2) return;
+  var end = pts[pts.length - 1];
+  // Incoming direction: vector from the last stroke segment, pointing toward the receiver
+  var prev = pts.length >= 2 ? pts[pts.length - 2] : pts[0];
+  var dx = end.x - prev.x, dy = end.y - prev.y;
+  if (Math.hypot(dx, dy) < 1) return;
+  // Cone faces BACK along incoming direction (opening toward source)
+  var theta = Math.atan2(-dy, -dx);
+  var ax = receiverToken.x + Math.cos(theta) * TOKEN_R;
+  var ay = receiverToken.y + Math.sin(theta) * TOKEN_R;
+  // Use stroke length as cone reach proxy, clamped
+  var strokeLen = 0;
+  for (var i = 1; i < pts.length; i++) strokeLen += Math.hypot(pts[i].x - pts[i-1].x, pts[i].y - pts[i-1].y);
+  var len = Math.min(Math.max(strokeLen * 0.55, 60), 180);
+  var half = CONE_ANGLE / 2;
+  var lx = ax + Math.cos(theta - half) * len, ly = ay + Math.sin(theta - half) * len;
+  var rx = ax + Math.cos(theta + half) * len, ry = ay + Math.sin(theta + half) * len;
+  ctx.save();
+  var grad = ctx.createRadialGradient(ax, ay, 0, ax, ay, len);
+  grad.addColorStop(0, hexToRgba(receiverToken.fill, 0.38));
+  grad.addColorStop(1, hexToRgba(receiverToken.fill, 0.05));
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(lx, ly); ctx.lineTo(rx, ry); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = hexToRgba(receiverToken.fill, 0.55); ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(lx, ly); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(rx, ry); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function hexToRgba(hex, a) {
+  var n = parseInt(hex.slice(1), 16);
+  return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+}
+
+function drawArrow(ctx, points, color) {
+  if (!points || points.length < 2) return;
+  var last = points[points.length - 1], prev = points[points.length - 2];
+  var a = Math.atan2(last.y - prev.y, last.x - prev.x);
+  var hl = 11;
+  ctx.save();
+  ctx.shadowColor = color; ctx.shadowBlur = 4;
+  ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y);
+  for (var i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+  ctx.stroke();
+  ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(last.x, last.y);
+  ctx.lineTo(last.x - hl * Math.cos(a - Math.PI / 6), last.y - hl * Math.sin(a - Math.PI / 6));
+  ctx.lineTo(last.x - hl * Math.cos(a + Math.PI / 6), last.y - hl * Math.sin(a + Math.PI / 6));
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function hitTest(tokens, x, y) {
+  // Touch devices: enlarge hit radius for fat-finger tolerance
+  var pad = (window.matchMedia && window.matchMedia('(hover: none)').matches) ? 12 : 5;
+  var r = TOKEN_R + pad;
+  for (var i = tokens.length - 1; i >= 0; i--) {
+    var dx = tokens[i].x - x, dy = tokens[i].y - y;
+    if (dx * dx + dy * dy <= r * r) return i;
+  }
+  return -1;
+}
+
+// Color for arrows:
+//  - If attached to a server token (fromIdx), use that token's fill (team color).
+//  - Otherwise use a neutral ink color so free scribbles/annotations don't look like team plays.
+function colorForLine(l) {
+  if (typeof l.fromIdx === 'number' && state.tokens[l.fromIdx]) return state.tokens[l.fromIdx].fill;
+  return l.color || '#e6e9f0';
+}
+// Used only during live preview on pen/auto strokes and legacy fallback. Free strokes preview in neutral ink.
+function getLineColor(y) { return '#e6e9f0'; }
+
+// Anchor first/last stroke points to the tokens they reference (so moving a token pulls the arrow along).
+function resolveLineEndpoints() {
+  state.lines.forEach(function(l) {
+    if (!l.points || l.points.length < 2) return;
+    if (typeof l.fromIdx === 'number' && state.tokens[l.fromIdx]) {
+      l.points[0].x = state.tokens[l.fromIdx].x; l.points[0].y = state.tokens[l.fromIdx].y;
+    }
+    if (typeof l.toIdx === 'number' && state.tokens[l.toIdx]) {
+      var last = l.points[l.points.length - 1];
+      last.x = state.tokens[l.toIdx].x; last.y = state.tokens[l.toIdx].y;
+    }
+  });
+}
+
+function redraw() {
+  resolveLineEndpoints();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawCourt(ctx, canvas.width, canvas.height);
+  // Cones: one per line that has a toIdx (receiver). Drawn under arrows.
+  if (state.showCones) {
+    state.lines.forEach(function(l) {
+      if (typeof l.toIdx !== 'number') return;
+      var receiver = state.tokens[l.toIdx]; if (!receiver) return;
+      drawCone(ctx, receiver, l);
+    });
+  }
+  state.lines.forEach(function(l) { drawArrow(ctx, l.points, colorForLine(l)); });
+  state.tokens.forEach(function(t, i) { drawToken(ctx, t, i === state.selected); });
+  // Live pen preview
+  if (state.penPoints && state.penPoints.length >= 2) {
+    var firstIdx = state.penFromIdx;
+    var previewColor = (typeof firstIdx === 'number' && state.tokens[firstIdx])
+      ? state.tokens[firstIdx].fill
+      : getLineColor(state.penPoints[0].y);
+    drawArrow(ctx, state.penPoints, previewColor);
+  }
+}
+
+function setMode(mode) {
+  if (mode === 'undo') { if (state.lines.length) { state.lines.pop(); redraw(); saveState(); showToast('Line removed'); } return; }
+  if (mode === 'flip') { flipBoard(); return; }
+  if (mode === 'cone') {
+    state.showCones = !state.showCones;
+    document.querySelector('[data-mode="cone"]').classList.toggle('active', state.showCones);
+    redraw(); saveState();
+    showToast(state.showCones ? 'Cones on' : 'Cones off');
+    return;
+  }
+  if (mode === 'reset') {
+    if (!confirm('Reset to default layout? This clears all lines and token positions.')) return;
+    state.tokens = makeDefaultTokens(canvas.width, canvas.height);
+    state.lines = []; state.mode = 'auto'; state.selected = -1; updateButtons(); redraw(); saveState();
+    showToast('Reset to default');
+    return;
+  }
+  if (mode === 'export') { exportImage(); return; }
+  // Toggling off a tool mode returns to the auto default. Auto stays auto.
+  state.mode = (state.mode === mode) ? 'auto' : mode;
+  state.selected = -1; redraw();
+  updateButtons();
+}
+
+function exportImage() {
+  canvas.toBlob(function(b) {
+    if (!b) { showToast('Export failed'); return; }
+    var u = URL.createObjectURL(b), a = document.createElement('a');
+    a.href = u; a.download = 'pickleball-play.png'; a.click();
+    setTimeout(function() { URL.revokeObjectURL(u); }, 1000);
+    showToast('Exported ✓');
+  }, 'image/png');
+}
+
+function updateButtons() {
+  document.querySelectorAll('[data-mode]').forEach(function(b) {
+    var m = b.getAttribute('data-mode');
+    if (m === 'cone') b.classList.toggle('active', state.showCones);
+    else if (m === 'auto' || m === 'move' || m === 'pen' || m === 'delete') b.classList.toggle('active', m === state.mode);
+  });
+}
+
+function getPos(e) {
+  var r = canvas.getBoundingClientRect(), src = e.touches ? (e.touches[0] || e.changedTouches[0]) : e;
+  return { x: (src.clientX - r.left) * (canvas.width / r.width), y: (src.clientY - r.top) * (canvas.height / r.height) };
+}
+
+function onDown(e) {
+  if (e.touches) e.preventDefault();
+  var pos = getPos(e);
+  var hit = hitTest(state.tokens, pos.x, pos.y);
+  if (state.mode === 'delete') {
+    if (hit !== -1) {
+      var tk = state.tokens[hit];
+      var isPlayer = tk && /^(p1|p2|o1|o2)$/.test(tk.type);
+      if (isPlayer && !confirm('Delete ' + tk.label + '? This removes the player and any of their arrows.')) return;
+      state.tokens.splice(hit, 1);
+      // Remove lines that reference this token, and re-index remaining ones
+      state.lines = state.lines.filter(function(l) {
+        return l.fromIdx !== hit && l.toIdx !== hit;
+      }).map(function(l) {
+        if (typeof l.fromIdx === 'number' && l.fromIdx > hit) l.fromIdx--;
+        if (typeof l.toIdx === 'number' && l.toIdx > hit) l.toIdx--;
+        return l;
+      });
+      if (state.selected === hit) state.selected = -1;
+      else if (state.selected > hit) state.selected--;
+      redraw(); saveState(); showToast('Deleted');
+    } else {
+      var li = hitTestLine(state.lines, pos.x, pos.y, 10);
+      if (li !== -1) { state.lines.splice(li, 1); redraw(); saveState(); showToast('Line deleted'); }
+    }
+    return;
+  }
+  // Tapping a token: behavior depends on mode.
+  if (hit !== -1) {
+    // Pen mode: start a stroke anchored to this token. Token stays put.
+    if (state.mode === 'pen') {
+      state.penPoints = [pos];
+      state.penFromIdx = hit;
+      return;
+    }
+    // Auto and Move: start a drag/select interaction.
+    state.dragging = { active: true, index: hit, moved: false, downX: pos.x, downY: pos.y };
+    return;
+  }
+  // Empty space: draw in pen/auto, deselect in move.
+  if (state.mode === 'pen' || state.mode === 'auto') {
+    state.penPoints = [pos];
+    state.penFromIdx = null;
+    return;
+  }
+  if (state.selected !== -1) { state.selected = -1; redraw(); }
+}
+
+function onMove(e) {
+  if (e.touches) e.preventDefault();
+  var pos = getPos(e);
+  if (state.dragging.active) {
+    var dx = pos.x - state.dragging.downX, dy = pos.y - state.dragging.downY;
+    if (!state.dragging.moved && (dx * dx + dy * dy) < 25) return;
+    state.dragging.moved = true;
+    var t = state.tokens[state.dragging.index];
+    t.x = pos.x; t.y = pos.y;
+    redraw(); return;
+  }
+  if (state.penPoints) {
+    // Sample-rate limit: skip points too close to the last one (keeps stroke smooth, reduces storage)
+    var last = state.penPoints[state.penPoints.length - 1];
+    if (Math.hypot(pos.x - last.x, pos.y - last.y) >= 2) {
+      state.penPoints.push(pos);
+      redraw();
+    }
+  }
+}
+
+function onUp(e) {
+  if (e.touches) e.preventDefault();
+  if (state.dragging.active) {
+    var idx = state.dragging.index, moved = state.dragging.moved;
+    state.dragging = { active: false, index: -1, moved: false, downX: 0, downY: 0 };
+    if (moved) { saveState(); return; }
+    // Tap on a token (no drag): select / deselect / connect — works in any non-delete mode.
+    if (state.selected === -1) { state.selected = idx; redraw(); }
+    else if (state.selected === idx) { state.selected = -1; redraw(); }
+    else {
+      var a = state.tokens[state.selected], b = state.tokens[idx];
+      state.lines.push({
+        points: [{ x: a.x, y: a.y }, { x: b.x, y: b.y }],
+        color: a.fill,
+        fromIdx: state.selected, toIdx: idx
+      });
+      state.selected = -1; redraw(); saveState(); showToast('Connected');
+    }
+    return;
+  }
+  if (state.penPoints) {
+    var pts = state.penPoints;
+    var totalLen = 0;
+    for (var i = 1; i < pts.length; i++) totalLen += Math.hypot(pts[i].x - pts[i-1].x, pts[i].y - pts[i-1].y);
+    if (totalLen > 10 && pts.length >= 2) {
+      var endPos = pts[pts.length - 1];
+      var endHit = hitTest(state.tokens, endPos.x, endPos.y);
+      var fromIdx = state.penFromIdx;
+      // Snap endpoints to tokens if the stroke started/ended on one
+      if (typeof fromIdx === 'number' && state.tokens[fromIdx]) {
+        pts[0] = { x: state.tokens[fromIdx].x, y: state.tokens[fromIdx].y };
+      }
+      if (endHit !== -1 && endHit !== fromIdx) {
+        pts[pts.length - 1] = { x: state.tokens[endHit].x, y: state.tokens[endHit].y };
+      }
+      var line = { points: pts, color: '' };
+      if (typeof fromIdx === 'number') line.fromIdx = fromIdx;
+      if (endHit !== -1 && endHit !== fromIdx) line.toIdx = endHit;
+      line.color = (typeof line.fromIdx === 'number') ? state.tokens[line.fromIdx].fill : getLineColor(pts[0].y);
+      state.lines.push(line);
+      saveState();
+    }
+    state.penPoints = null; state.penFromIdx = null; redraw();
+  }
+}
+
+function hitTestLine(lines, x, y, tol) {
+  for (var i = lines.length - 1; i >= 0; i--) {
+    var pts = lines[i].points;
+    if (!pts || pts.length < 2) continue;
+    for (var j = 1; j < pts.length; j++) {
+      var ax = pts[j-1].x, ay = pts[j-1].y, bx = pts[j].x, by = pts[j].y;
+      var dx = bx - ax, dy = by - ay;
+      var len2 = dx * dx + dy * dy; if (len2 === 0) continue;
+      var t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / len2));
+      var px = ax + t * dx, py = ay + t * dy;
+      if (Math.hypot(x - px, y - py) <= tol) return i;
+    }
+  }
+  return -1;
+}
+
+function flipBoard() {
+  var w = canvas.width, h = canvas.height;
+  state.tokens.forEach(function(t) { t.x = w - t.x; t.y = h - t.y; });
+  // Swap identities AND colors across partner tokens: p1↔o1, p2↔o2.
+  // After flip, the near side is always P1/P2 (blue) and far side is O1/O2 (red).
+  var pair = { p1: 'o1', o1: 'p1', p2: 'o2', o2: 'p2' };
+  state.tokens.forEach(function(t) {
+    var newType = pair[t.type];
+    var def = TOKEN_TYPES[newType];
+    if (newType && def) {
+      t.type = newType;
+      t.label = def.label;
+      t.fill = def.fill;
+      t.stroke = def.stroke;
+    }
+  });
+  state.lines.forEach(function(l) {
+    if (l.points) l.points.forEach(function(p) { p.x = w - p.x; p.y = h - p.y; });
+    // Recolor only for lines without a server token link (legacy/free-floating strokes)
+    if (typeof l.fromIdx !== 'number' && l.points && l.points[0]) l.color = getLineColor(l.points[0].y);
+  });
+  state.selected = -1;
+  redraw(); saveState(); showToast('Flipped');
+}
+
+function resetInteraction() { state.dragging = { active: false, index: -1, moved: false, downX: 0, downY: 0 }; state.penPoints = null; state.penFromIdx = null; redraw(); }
+
+function sizeCanvas() {
+  var oldW = canvas.width, oldH = canvas.height;
+  var wrap = canvas.parentElement;
+  var avail = wrap.clientWidth - 16;
+  var isDesktop = window.innerWidth >= 768;
+  var maxW = Math.min(avail, isDesktop ? 620 : 720);
+  var w = Math.max(260, maxW);
+  var ratio = SURFACE_L / SURFACE_W;
+  var h = Math.round(w * ratio);
+  var chrome = isDesktop ? 100 : (window.innerWidth <= 520 ? 130 : 150);
+  var maxH = window.innerHeight - chrome;
+  if (h > maxH) { h = maxH; w = Math.round(h / ratio); }
+  if (oldW > 0 && oldH > 0 && (oldW !== w || oldH !== h)) {
+    var sx = w / oldW, sy = h / oldH;
+    state.tokens.forEach(function(t) { t.x *= sx; t.y *= sy; });
+    state.lines.forEach(function(l) {
+      if (l.points) l.points.forEach(function(p) { p.x *= sx; p.y *= sy; });
+    });
+  }
+  canvas.width = w; canvas.height = h;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  redraw();
+}
+
+function init() {
+  canvas = document.getElementById('court');
+  ctx = canvas.getContext('2d');
+  var wrap = canvas.parentElement;
+  var initW = Math.max(280, Math.min(wrap.clientWidth - 24, 620));
+  var initH = Math.round(initW * (SURFACE_L / SURFACE_W));
+  canvas.width = initW; canvas.height = initH;
+  if (!loadState()) state.tokens = makeDefaultTokens(canvas.width, canvas.height);
+  updateButtons();
+  sizeCanvas();
+  window.addEventListener('resize', sizeCanvas);
+  canvas.addEventListener('mousedown', onDown);
+  canvas.addEventListener('mousemove', onMove);
+  canvas.addEventListener('mouseup', onUp);
+  canvas.addEventListener('touchstart', onDown, { passive: false });
+  canvas.addEventListener('touchmove', onMove, { passive: false });
+  canvas.addEventListener('touchend', onUp, { passive: false });
+  canvas.addEventListener('touchcancel', resetInteraction);
+  document.querySelectorAll('[data-mode]').forEach(function(b) { b.addEventListener('click', function() { setMode(this.getAttribute('data-mode')); }); });
+  window.addEventListener('keydown', function(e) {
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && (e.key === 'z' || e.key === 'Z')) {
+      e.preventDefault();
+      setMode('undo');
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
